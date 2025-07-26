@@ -28,11 +28,11 @@
   }
   
   .message-user {
-    @apply bg-blue-600 text-white rounded-lg px-4 py-2 max-w-xs ml-auto;
+    @apply bg-blue-600 text-white rounded-lg px-4 py-2;
   }
   
   .message-assistant {
-    @apply bg-gray-100 text-gray-900 rounded-lg px-4 py-2 max-w-xs mr-auto;
+    @apply bg-gray-100 text-gray-900 rounded-lg px-4 py-2;
   }
 }
 

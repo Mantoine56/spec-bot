@@ -22,6 +22,7 @@ export interface SpecState {
   initial_description?: string;
   user_input?: string; // For backward compatibility
   current_phase?: 'requirements' | 'design' | 'tasks' | 'completed';
+  pending_approval?: 'requirements' | 'design' | 'tasks' | null;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -152,10 +153,15 @@ export const workflowApi = {
   /**
    * Reset the workflow to start over
    */
-  async resetWorkflow(): Promise<{ message: string }> {
-    return apiRequest<{ message: string }>('/api/spec/reset', {
-      method: 'POST',
-    });
+  async resetWorkflow(workflowId?: string): Promise<{ message: string }> {
+    if (workflowId) {
+      return apiRequest<{ message: string }>(`/api/spec/reset/${workflowId}`, {
+        method: 'POST',
+      });
+    } else {
+      // If no workflow ID provided, just return success (client-side reset)
+      return Promise.resolve({ message: 'Workflow reset successfully' });
+    }
   },
 };
 

@@ -87,12 +87,12 @@ const Message: React.FC<MessageProps> = ({
 
   return (
     <div className={`flex ${type === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-      <div className={`flex ${type === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start space-x-3 max-w-4xl`}>
+      <div className={`flex ${type === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start space-x-3 max-w-5xl w-full`}>
         {getIcon()}
         
-        <div className={`flex flex-col ${type === 'user' ? 'items-end' : 'items-start'}`}>
+        <div className={`flex flex-col ${type === 'user' ? 'items-end' : 'items-start'} flex-1 min-w-0`}>
           {/* Message content */}
-          <div className={getMessageStyles()}>
+          <div className={`${getMessageStyles()} w-full`}>
             {metadata?.isGenerating ? (
               <div className="flex items-center space-x-2">
                 <div className="flex space-x-1">
@@ -103,7 +103,7 @@ const Message: React.FC<MessageProps> = ({
                 <span>Generating {metadata.phase}...</span>
               </div>
             ) : (
-              <div className="whitespace-pre-wrap">{content}</div>
+              <div className="whitespace-pre-wrap break-words">{content}</div>
             )}
           </div>
           

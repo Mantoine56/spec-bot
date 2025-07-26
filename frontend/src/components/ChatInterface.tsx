@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Message from './Message';
 import MessageInput from './MessageInput';
 import { workflowApi, ApiError } from '../services/api';
@@ -16,6 +16,10 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Track what we've already shown to prevent duplicates
+  const [shownStatuses, setShownStatuses] = useState<Set<string>>(new Set());
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -24,7 +28,27 @@ const ChatInterface: React.FC = () => {
 
   // Check for existing workflow on component mount
   useEffect(() => {
-    checkExistingWorkflow();
+    if (!hasInitialized) {
+      checkExistingWorkflow();
+      setHasInitialized(true);
+    }
+  }, [hasInitialized]);
+
+  /**
+   * Add a message with duplicate prevention
+   */
+  const addMessage = useCallback((message: Omit<MessageProps, 'id'> & { id?: string }) => {
+    const id = message.id || `msg-${Date.now()}-${Math.random()}`;
+    setMessages(prev => {
+      // Check if we already have this message
+      const exists = prev.some(m => 
+        m.id === id || 
+        (m.type === message.type && m.content === message.content)
+      );
+      if (exists) return prev;
+      
+      return [...prev, { ...message, id }];
+    });
   }, []);
 
   /**
@@ -33,16 +57,27 @@ const ChatInterface: React.FC = () => {
   const checkExistingWorkflow = async () => {
     try {
       const response = await workflowApi.getStatus();
-      // Handle simple status response or full SpecState
+      
       if (response && typeof response === 'object' && 'status' in response) {
-        if (response.status !== 'idle') {
-          // Try to convert to SpecState format if it's a full state
-          if ('workflow_id' in response) {
-            setWorkflowState(response as SpecState);
-            loadWorkflowMessages(response as SpecState);
+        if (response.status !== 'idle' && 'workflow_id' in response) {
+          // We have an active workflow
+          setWorkflowState(response as SpecState);
+          
+          // Add initial description if it exists
+          const state = response as SpecState;
+          if (state.initial_description) {
+            addMessage({
+              id: 'initial-input',
+              type: 'user',
+              content: state.initial_description,
+              timestamp: new Date(state.created_at || Date.now()),
+            });
           }
+          
+          // Start polling for updates
+          pollWorkflowStatus();
         } else {
-          // No existing workflow, show welcome message
+          // No workflow, show welcome
           showWelcomeMessage();
         }
       } else {
@@ -50,7 +85,6 @@ const ChatInterface: React.FC = () => {
       }
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
-        // No workflow exists, this is normal
         showWelcomeMessage();
       } else {
         setError('Failed to connect to backend. Please ensure the server is running.');
@@ -59,7 +93,7 @@ const ChatInterface: React.FC = () => {
   };
 
   /**
-   * Show welcome message (only once)
+   * Show welcome message
    */
   const showWelcomeMessage = () => {
     addMessage({
@@ -71,272 +105,110 @@ const ChatInterface: React.FC = () => {
   };
 
   /**
-   * Map backend phase/state to frontend status format
+   * Get status message for current state
    */
-  const mapPhaseToStatus = (
-    phase: string, 
-    state: SpecState
-  ): SpecState['status'] => {
-    // If there's already a status field, use it
-    if (state.status) return state.status;
-    
-    // Map based on current phase and approval status
-    switch (phase) {
-      case 'requirements':
-        return state.requirements?.approval_status === 'pending' 
-          ? 'awaiting_requirements_approval' 
-          : 'generating_requirements';
-      case 'design':
-        return state.design?.approval_status === 'pending'
-          ? 'awaiting_design_approval'
-          : 'generating_design';
-      case 'tasks':
-        return state.tasks?.approval_status === 'pending'
-          ? 'awaiting_tasks_approval'
-          : 'generating_tasks';
-      case 'completed':
-        return 'completed';
-      default:
-        return 'idle';
-    }
-  };
-
-  /**
-   * Load messages based on current workflow state
-   */
-  const loadWorkflowMessages = (state: SpecState) => {
-    const msgs: MessageProps[] = [];
-
-    // Add initial user input
-    if (state.initial_description) {
-      msgs.push({
-        id: 'initial-input',
-        type: 'user',
-        content: state.initial_description,
-        timestamp: new Date(state.created_at || Date.now()),
-      });
-    }
-
-    // Add system status message based on current phase and status
-    const currentStatus = mapPhaseToStatus(state.current_phase || 'requirements', state);
-    const statusMessage = getStatusMessage(currentStatus);
-    if (statusMessage) {
-      msgs.push({
-        id: 'status',
-        type: 'system',
-        content: statusMessage,
-        timestamp: new Date(),
-      });
-    }
-
-    // Add generated content if available
-    if (state.requirements?.content) {
-      msgs.push({
-        id: 'requirements',
-        type: 'assistant',
-        content: `**Requirements Generated:**\n\n${state.requirements.content}`,
-        timestamp: new Date(state.updated_at || Date.now()),
-        metadata: { phase: 'requirements' }
-      });
-    }
-
-    if (state.design?.content) {
-      msgs.push({
-        id: 'design',
-        type: 'assistant',
-        content: `**Design Generated:**\n\n${state.design.content}`,
-        timestamp: new Date(state.updated_at || Date.now()),
-        metadata: { phase: 'design' }
-      });
-    }
-
-    if (state.tasks?.content) {
-      msgs.push({
-        id: 'tasks',
-        type: 'assistant',
-        content: `**Tasks Generated:**\n\n${state.tasks.content}`,
-        timestamp: new Date(state.updated_at || Date.now()),
-        metadata: { phase: 'tasks' }
-      });
-    }
-
-    setMessages(msgs);
-  };
-
-  /**
-   * Get human-readable status message
-   */
-  const getStatusMessage = (status: SpecState['status']): string | null => {
-    if (!status) return null;
-    
-    switch (status) {
-      case 'generating_requirements':
-        return 'Generating requirements document...';
-      case 'awaiting_requirements_approval':
-        return 'Requirements ready for review. Please approve or provide feedback.';
-      case 'generating_design':
-        return 'Generating design document...';
-      case 'awaiting_design_approval':
-        return 'Design ready for review. Please approve or provide feedback.';
-      case 'generating_tasks':
-        return 'Generating task list...';
-      case 'awaiting_tasks_approval':
-        return 'Tasks ready for review. Please approve or provide feedback.';
-      case 'generating_final_documents':
-        return 'Finalizing documents...';
-      case 'completed':
-        return 'Specification generation completed! All documents have been saved.';
-      case 'error':
-        return 'An error occurred during generation. Please try again.';
-      default:
-        return null;
-    }
-  };
-
-  /**
-   * Get current workflow phase based on status
-   */
-  const getCurrentPhase = (status: SpecState['status']): 'requirements' | 'design' | 'tasks' | null => {
-    if (!status) return null;
-    if (status.includes('requirements')) return 'requirements';
-    if (status.includes('design')) return 'design';
-    if (status.includes('tasks')) return 'tasks';
-    return null;
-  };
-
-  /**
-   * Get workflow status safely
-   */
-  const getWorkflowStatus = (workflowState: SpecState | null): SpecState['status'] => {
-    if (!workflowState) return 'idle';
-    return workflowState.status || mapPhaseToStatus(workflowState.current_phase || 'requirements', workflowState) || 'idle';
-  };
-
-  /**
-   * Add a new message to the conversation
-   */
-  const addMessage = (message: Omit<MessageProps, 'id'> & { id?: string }) => {
-    const newMessage: MessageProps = {
-      id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      ...message,
+  const getStatusMessage = (status: string): string | null => {
+    const messages: Record<string, string> = {
+      'generating_requirements': 'Generating requirements...',
+      'awaiting_requirements_approval': 'Requirements ready for review. Please approve or provide feedback.',
+      'generating_design': 'Generating design document...',
+      'awaiting_design_approval': 'Design ready for review. Please approve or provide feedback.',
+      'generating_tasks': 'Generating task list...',
+      'awaiting_tasks_approval': 'Tasks ready for review. Please approve or provide feedback.',
+      'completed': 'Specification generation completed! All documents have been saved.',
+      'error': 'An error occurred during workflow processing.',
     };
     
-    // Prevent duplicate messages with the same ID
-    setMessages(prev => {
-      const existingIds = new Set(prev.map(m => m.id));
-      if (existingIds.has(newMessage.id)) {
-        console.warn(`Duplicate message ID detected: ${newMessage.id}`);
-        return prev;
-      }
-      return [...prev, newMessage];
-    });
+    return messages[status] || null;
   };
 
   /**
-   * Handle sending a new message
+   * Poll workflow status for real-time updates
    */
-  const handleSendMessage = async (content: string) => {
-    // Clear any existing errors
-    setError(null);
+  const pollWorkflowStatus = useCallback(() => {
+    let isPolling = true;
     
-    // Add user message
-    addMessage({
-      type: 'user',
-      content,
-      timestamp: new Date(),
-    });
-
-    setIsLoading(true);
-
-    try {
-      if (!workflowState || workflowState.status === 'idle' || workflowState.status === 'completed') {
-        // Start new workflow
-        await startNewWorkflow(content);
-      } else {
-        // Handle approval or feedback
-        await handleWorkflowFeedback(content);
-      }
-    } catch (error) {
-      console.error('Error handling message:', error);
-      const errorMessage = error instanceof ApiError 
-        ? `Error: ${error.message}`
-        : 'An unexpected error occurred. Please try again.';
+    const poll = async () => {
+      if (!isPolling) return;
       
-      addMessage({
-        type: 'assistant',
-        content: errorMessage,
-        timestamp: new Date(),
-      });
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Start a new specification workflow
-   */
-  const startNewWorkflow = async (userInput: string) => {
-    addMessage({
-      type: 'system',
-      content: 'Starting new specification workflow...',
-      timestamp: new Date(),
-    });
-
-    const state = await workflowApi.startWorkflow({
-      feature_name: extractFeatureName(userInput),
-      description: userInput,
-      llm_provider: 'openai', // Default to OpenAI
-    });
-
-    setWorkflowState(state);
+      try {
+        const state = await workflowApi.getStatus();
+        setWorkflowState(state);
+        
+        // Determine current status
+        let currentStatus = state.status;
+        if (state.pending_approval) {
+          currentStatus = `awaiting_${state.pending_approval}_approval`;
+        }
+        
+        // Add status message if we haven't shown this status yet
+        if (currentStatus && !shownStatuses.has(currentStatus)) {
+          const statusMessage = getStatusMessage(currentStatus);
+          if (statusMessage) {
+            addMessage({
+              id: `status-${currentStatus}`,
+              type: 'system',
+              content: statusMessage,
+              timestamp: new Date(),
+            });
+            setShownStatuses(prev => new Set([...prev, currentStatus]));
+          }
+        }
+        
+        // Add document summaries when they're first generated
+        ['requirements', 'design', 'tasks'].forEach(phase => {
+          const phaseData = state[phase as keyof typeof state] as any;
+          if (phaseData?.content && !shownStatuses.has(`${phase}_generated`)) {
+            addMessage({
+              id: `${phase}-summary`,
+              type: 'assistant',
+              content: `**${phase.charAt(0).toUpperCase() + phase.slice(1)} Generated:** ✅\n\n${phaseData.content.substring(0, 200)}...`,
+              timestamp: new Date(state.updated_at || Date.now()),
+              metadata: { phase: phase as 'requirements' | 'design' | 'tasks' }
+            });
+            setShownStatuses(prev => new Set([...prev, `${phase}_generated`]));
+          }
+        });
+        
+        // Continue polling if workflow is still active
+        if (state.status && !['completed', 'error', 'idle'].includes(state.status)) {
+          setTimeout(() => poll(), 5000);
+        } else {
+          isPolling = false;
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+        setTimeout(() => poll(), 10000);
+      }
+    };
     
-    // Start polling for updates
-    pollWorkflowStatus();
-  };
+    poll();
+    
+    // Return cleanup function
+    return () => {
+      isPolling = false;
+    };
+  }, [addMessage, shownStatuses, setWorkflowState]);
 
   /**
-   * Handle workflow feedback (approval/rejection)
-   */
-  const handleWorkflowFeedback = async (feedback: string) => {
-    if (!workflowState || !workflowState.workflow_id) return;
-
-    // Determine whether this is approval or feedback
-    const isApproval = feedback.toLowerCase().includes('approve') || 
-                      feedback.toLowerCase().includes('looks good') ||
-                      feedback.toLowerCase().includes('yes');
-
-    const action = isApproval ? 'approve' : 'revise';
-
-    const state = await workflowApi.submitApproval({
-      workflow_id: workflowState.workflow_id,
-      action: action,
-      feedback: isApproval ? undefined : feedback,
-    });
-
-    setWorkflowState(state);
-    pollWorkflowStatus();
-  };
-
-  /**
-   * Extract feature name from user input (simple heuristic)
+   * Extract feature name from user input
    */
   const extractFeatureName = (input: string): string => {
-    // Simple extraction - take first few words or look for key phrases
-    const words = input.trim().split(' ');
-    if (words.length <= 3) {
-      return words.join('_').toLowerCase();
-    }
+    // Remove common words and get meaningful terms
+    const words = input.toLowerCase().split(/\s+/).filter(word => 
+      word.length > 2 && 
+      !['the', 'and', 'for', 'with', 'that', 'this', 'create', 'build', 'make', 'add', 'new'].includes(word)
+    );
     
-    // Look for patterns like "build a", "create a", "implement"
+    // Look for specific patterns
     const patterns = [
-      /(?:build|create|implement|develop|design)\s+(?:a\s+|an\s+)?(.+?)(?:\s+(?:that|which|for)|\.|$)/i,
-      /(.+?)(?:\s+system|\s+feature|\s+app|\s+application)/i
+      /(?:for|about|called?)\s+([a-zA-Z_][a-zA-Z0-9_\s]{2,20})/i,
+      /([a-zA-Z_][a-zA-Z0-9_\s]{2,20})\s+(?:page|app|feature|system|component)/i,
     ];
     
     for (const pattern of patterns) {
       const match = input.match(pattern);
-      if (match && match[1]) {
+      if (match) {
         return match[1].trim().replace(/\s+/g, '_').toLowerCase();
       }
     }
@@ -346,53 +218,15 @@ const ChatInterface: React.FC = () => {
   };
 
   /**
-   * Poll workflow status for real-time updates
-   */
-  const pollWorkflowStatus = () => {
-    let lastKnownStatus: string | null = null;
-    
-    const poll = async () => {
-      try {
-        const state = await workflowApi.getStatus();
-        setWorkflowState(state);
-        
-        // Only add status message if status actually changed
-        const currentStatus = state.status;
-        if (currentStatus && currentStatus !== lastKnownStatus) {
-          const statusMessage = getStatusMessage(currentStatus);
-          if (statusMessage) {
-            addMessage({
-              type: 'system',
-              content: statusMessage,
-              timestamp: new Date(),
-            });
-          }
-          lastKnownStatus = currentStatus;
-        }
-        
-        // Continue polling if workflow is still active, but with longer interval
-        if (state.status && !['completed', 'error', 'idle'].includes(state.status)) {
-          setTimeout(poll, 5000); // Reduced frequency to 5 seconds
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-        // Retry after longer delay on error
-        setTimeout(poll, 10000);
-      }
-    };
-    
-    poll();
-  };
-
-  /**
    * Reset the workflow
    */
   const handleReset = async () => {
     try {
-      await workflowApi.resetWorkflow();
+      await workflowApi.resetWorkflow(workflowState?.workflow_id);
       setMessages([]);
       setWorkflowState(null);
       setError(null);
+      setShownStatuses(new Set());
       
       addMessage({
         id: 'reset',
@@ -410,17 +244,14 @@ const ChatInterface: React.FC = () => {
    * Handle approve button click
    */
   const handleApprove = async () => {
-    setIsLoading(true);
+    if (!workflowState || !workflowState.workflow_id) return;
+    
     try {
+      setIsLoading(true);
       await handleWorkflowFeedback('approve');
-      addMessage({
-        type: 'user',
-        content: 'Approved - continue to next phase',
-        timestamp: new Date(),
-      });
     } catch (error) {
       console.error('Approve error:', error);
-      setError('Failed to approve workflow');
+      setError('Failed to approve. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -430,108 +261,200 @@ const ChatInterface: React.FC = () => {
    * Handle request changes button click
    */
   const handleRequestChanges = () => {
-    // Focus the input for the user to provide feedback
-    addMessage({
-      type: 'system',
-      content: 'Please provide feedback on what changes are needed:',
-      timestamp: new Date(),
-    });
+    // Focus the input for user to provide feedback
+    const input = document.querySelector('textarea');
+    if (input) {
+      input.focus();
+      input.placeholder = 'Please describe what changes you\'d like...';
+    }
   };
 
-  const needsApproval = workflowState?.status?.includes('awaiting') || false;
-  const isGenerating = workflowState?.status?.includes('generating') || false;
+  /**
+   * Handle workflow feedback (approve/revise)
+   */
+  const handleWorkflowFeedback = async (feedback: string) => {
+    if (!workflowState || !workflowState.workflow_id) return;
+
+    const isApproval = feedback.toLowerCase().includes('approve') || 
+                     feedback.toLowerCase().includes('looks good') || 
+                     feedback.toLowerCase().includes('yes') ||
+                     feedback === 'approve';
+
+    const action = isApproval ? 'approve' : 'revise';
+
+    try {
+      const state = await workflowApi.submitApproval({
+        workflow_id: workflowState.workflow_id,
+        action: action,
+        feedback: isApproval ? undefined : feedback,
+      });
+
+      setWorkflowState(state);
+      
+      // Add user feedback message
+      addMessage({
+        type: 'user',
+        content: isApproval ? 'Approved - continue to next phase' : feedback,
+        timestamp: new Date(),
+      });
+
+      // Reset shown statuses for the approval so we can show new status
+      if (isApproval && workflowState.pending_approval) {
+        setShownStatuses(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(`awaiting_${workflowState.pending_approval}_approval`);
+          return newSet;
+        });
+      }
+
+      // Resume polling
+      pollWorkflowStatus();
+    } catch (error) {
+      console.error('Workflow feedback error:', error);
+      setError('Failed to submit feedback. Please try again.');
+    }
+  };
+
+  /**
+   * Handle user message submission
+   */
+  const handleSendMessage = async (message: string) => {
+    if (!message.trim()) return;
+
+    // Add user message
+    addMessage({
+      type: 'user',
+      content: message,
+      timestamp: new Date(),
+    });
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (workflowState && workflowState.status !== 'idle') {
+        // Existing workflow - treat as feedback
+        await handleWorkflowFeedback(message);
+      } else {
+        // New workflow
+        const featureName = extractFeatureName(message);
+        const state = await workflowApi.startWorkflow({
+          feature_name: featureName,
+          description: message,
+        });
+
+        setWorkflowState(state);
+        setShownStatuses(new Set()); // Reset for new workflow
+        pollWorkflowStatus();
+      }
+    } catch (error) {
+      console.error('Send message error:', error);
+      if (error instanceof ApiError) {
+        setError(`Failed to process request: ${error.message}`);
+      } else {
+        setError('Failed to send message. Please check your connection.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Determine if workflow needs approval
+  const needsApproval = workflowState?.pending_approval !== undefined;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Error banner */}
+    <div className="flex flex-col h-full min-h-0">
+      {/* Error banner - fixed at top */}
       {error && (
-        <div className="bg-red-50 border-b border-red-200 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <p className="text-red-800 text-sm">{error}</p>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex-shrink-0">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.map((message) => (
-          <Message key={message.id} {...message} />
-        ))}
-        
-        {/* Loading indicator */}
-        {(isLoading || isGenerating) && (
-          <Message
-            id="loading"
-            type="assistant"
-            content="Thinking..."
-            timestamp={new Date()}
-            metadata={{
-              isGenerating: true,
-              phase: getCurrentPhase(workflowState?.status || 'idle') || undefined
-            }}
-          />
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Action bar for workflow controls */}
-      {workflowState && workflowState.status !== 'idle' && (
-        <div className="border-t border-gray-200 bg-gray-50 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Feature: <span className="font-medium">{workflowState.feature_name}</span>
-              <span className="ml-4">Status: <span className="font-medium capitalize">{workflowState.status?.replace(/_/g, ' ') || 'unknown'}</span></span>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Approval buttons when workflow needs approval */}
-              {needsApproval && (
-                <>
-                  <button
-                    onClick={handleApprove}
-                    disabled={isLoading}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? 'Approving...' : 'Approve'}
-                  </button>
-                  <button
-                    onClick={handleRequestChanges}
-                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                  >
-                    Request Changes
-                  </button>
-                </>
-              )}
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+            <div className="ml-auto pl-3">
               <button
-                onClick={handleReset}
-                className="btn-outline text-sm"
+                onClick={() => setError(null)}
+                className="inline-flex text-red-400 hover:text-red-600"
               >
-                Reset Workflow
+                <span className="sr-only">Dismiss</span>
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Message input */}
-      <MessageInput
-        onSendMessage={handleSendMessage}
-        disabled={isLoading || isGenerating}
-        placeholder={
-          needsApproval 
-            ? "Type 'approve' to continue, or provide feedback for revisions..."
-            : "Describe your feature idea..."
-        }
-        autoFocus={!workflowState}
-      />
+      {/* Chat messages - scrollable middle area */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 space-y-4">
+            {messages.map((message) => (
+              <Message key={message.id} {...message} />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed bottom area */}
+      <div className="flex-shrink-0 border-t border-gray-200">
+        {/* Action bar for workflow controls */}
+        {workflowState && workflowState.status !== 'idle' && (
+          <div className="bg-gray-50 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Feature:</span> {workflowState.feature_name} • 
+                <span className="font-medium"> Status:</span> {workflowState.status?.replace(/_/g, ' ')}
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                {needsApproval && (
+                  <>
+                    <button
+                      onClick={handleApprove}
+                      disabled={isLoading}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? 'Approving...' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={handleRequestChanges}
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                    >
+                      Request Changes
+                    </button>
+                  </>
+                )}
+                
+                <button
+                  onClick={handleReset}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
+                  Reset Workflow
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Message input */}
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          disabled={isLoading}
+          placeholder={
+            workflowState?.pending_approval 
+              ? "Provide feedback or click 'Approve' above..."
+              : "Describe your feature idea..."
+          }
+        />
+      </div>
     </div>
   );
 };

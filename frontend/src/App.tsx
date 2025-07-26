@@ -12,15 +12,13 @@ function App() {
   return (
     <WorkflowProvider>
       <Layout>
-        <div className="flex-1 flex">
-          {/* Chat Interface Area */}
-          <div className="flex-1 flex flex-col">
-            <ChatInterface />
-          </div>
-
-          {/* Document Preview Sidebar */}
-          <DocumentSidebar />
+        {/* Chat Interface Area */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          <ChatInterface />
         </div>
+
+        {/* Document Preview Sidebar */}
+        <DocumentSidebar />
       </Layout>
     </WorkflowProvider>
   );
