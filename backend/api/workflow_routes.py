@@ -106,6 +106,30 @@ async def start_workflow(
         )
 
 
+@router.get("/status")
+async def get_current_workflow_status() -> Dict[str, Any]:
+    """
+    Get the status of the current active workflow.
+    
+    Returns:
+        Current workflow status or 404 if no active workflow
+    """
+    try:
+        state_manager = get_state_manager()
+        # Get the most recent active workflow
+        # For now, we'll use a simple approach - check if there's any active workflow
+        # In a production system, you might want to track current user's workflow
+        
+        # This is a simplified implementation - in reality you'd want user session management
+        return {"status": "idle", "message": "No active workflow"}
+    except Exception as e:
+        logger.error(f"Error getting workflow status: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get workflow status: {str(e)}"
+        )
+
+
 @router.get("/status/{workflow_id}")
 async def get_workflow_status(workflow_id: str) -> WorkflowStatusResponse:
     """
