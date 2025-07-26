@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useWorkflow } from '../contexts/WorkflowContext';
 import DocumentModal from './DocumentModal';
+import MarkdownRenderer from './MarkdownRenderer';
 
 /**
  * Document sidebar component that displays generated documents
@@ -61,10 +62,11 @@ const DocumentSidebar: React.FC = () => {
                 </span>
               </div>
               <div className="max-h-48 overflow-y-auto bg-gray-50 p-3 rounded text-xs">
-                <pre className="whitespace-pre-wrap font-mono">
-                  {workflowState.requirements.content.substring(0, 500)}
-                  {workflowState.requirements.content.length > 500 && '...'}
-                </pre>
+                <MarkdownRenderer 
+                  content={workflowState.requirements.content.substring(0, 500) + 
+                    (workflowState.requirements.content.length > 500 ? '...' : '')}
+                  isPreview={true}
+                />
               </div>
               {workflowState.requirements.content.length > 500 && (
                 <button 
@@ -100,10 +102,11 @@ const DocumentSidebar: React.FC = () => {
                 </span>
               </div>
               <div className="max-h-48 overflow-y-auto bg-gray-50 p-3 rounded text-xs">
-                <pre className="whitespace-pre-wrap font-mono">
-                  {workflowState.design.content.substring(0, 500)}
-                  {workflowState.design.content.length > 500 && '...'}
-                </pre>
+                <MarkdownRenderer 
+                  content={workflowState.design.content.substring(0, 500) + 
+                    (workflowState.design.content.length > 500 ? '...' : '')}
+                  isPreview={true}
+                />
               </div>
               {workflowState.design.content.length > 500 && (
                 <button 
@@ -139,10 +142,11 @@ const DocumentSidebar: React.FC = () => {
                 </span>
               </div>
               <div className="max-h-48 overflow-y-auto bg-gray-50 p-3 rounded text-xs">
-                <pre className="whitespace-pre-wrap font-mono">
-                  {workflowState.tasks.content.substring(0, 500)}
-                  {workflowState.tasks.content.length > 500 && '...'}
-                </pre>
+                <MarkdownRenderer 
+                  content={workflowState.tasks.content.substring(0, 500) + 
+                    (workflowState.tasks.content.length > 500 ? '...' : '')}
+                  isPreview={true}
+                />
               </div>
               {workflowState.tasks.content.length > 500 && (
                 <button 

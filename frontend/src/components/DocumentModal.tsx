@@ -1,4 +1,5 @@
 import React from 'react';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface DocumentModalProps {
   isOpen: boolean;
@@ -34,9 +35,11 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="prose max-w-none">
-            <pre className="whitespace-pre-wrap font-mono text-sm bg-gray-50 p-4 rounded-lg border">
-              {content}
-            </pre>
+            <MarkdownRenderer 
+              content={content} 
+              className="leading-relaxed"
+              isPreview={false}
+            />
           </div>
         </div>
 

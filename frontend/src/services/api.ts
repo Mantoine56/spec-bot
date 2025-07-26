@@ -56,9 +56,9 @@ export interface ApprovalRequest {
 }
 
 export interface SettingsUpdateRequest {
-  llm_provider: 'openai' | 'anthropic';
-  openai_api_key?: string;
-  anthropic_api_key?: string;
+  provider: 'openai' | 'anthropic';
+  model_name: string;
+  api_key?: string;
 }
 
 // Custom error class for API errors
