@@ -411,4 +411,4 @@ backend/.specbot/specs/*/
 backend/.specbot/backups/*/
 
 # But track the example spec
-!variant-system-enhancement/ 
+!variant-system-enhancement/ backend/.env.backup*
