@@ -6,48 +6,51 @@
 // Base configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-// Type definitions for API responses
+// Type definitions for API responses - simplified for current backend compatibility
+export interface PhaseResult {
+  phase: 'requirements' | 'design' | 'tasks';
+  content: string;
+  generated_at?: string;
+  approval_status?: 'pending' | 'approved' | 'rejected' | 'revision_requested';
+  feedback?: string;
+}
+
 export interface SpecState {
-  id: string;
-  feature_name: string;
-  user_input: string;
-  status: 'idle' | 'generating_requirements' | 'awaiting_requirements_approval' | 
+  workflow_id?: string;
+  id?: string; // For backward compatibility
+  feature_name?: string;
+  initial_description?: string;
+  user_input?: string; // For backward compatibility
+  current_phase?: 'requirements' | 'design' | 'tasks' | 'completed';
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  requirements?: PhaseResult;
+  design?: PhaseResult;
+  tasks?: PhaseResult;
+  llm_provider?: 'openai' | 'anthropic';
+  model_name?: string;
+  enable_research?: boolean;
+  errors?: string[];
+  
+  // Current status field - handles both simple and complex responses
+  status?: 'idle' | 'initializing' | 'generating_requirements' | 'awaiting_requirements_approval' | 
           'generating_design' | 'awaiting_design_approval' | 'generating_tasks' | 
           'awaiting_tasks_approval' | 'generating_final_documents' | 'completed' | 'error';
-  requirements?: {
-    content: string;
-    approved: boolean;
-    feedback?: string;
-  };
-  design?: {
-    content: string;
-    approved: boolean;
-    feedback?: string;
-  };
-  tasks?: {
-    content: string;
-    approved: boolean;
-    feedback?: string;
-  };
-  files?: {
-    requirements_file?: string;
-    design_file?: string;
-    tasks_file?: string;
-  };
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
+  message?: string;
 }
 
 export interface StartWorkflowRequest {
   feature_name: string;
-  user_input: string;
+  description: string;
   llm_provider?: 'openai' | 'anthropic';
+  model_name?: string;
+  enable_research?: boolean;
 }
 
 export interface ApprovalRequest {
-  phase: 'requirements' | 'design' | 'tasks';
-  approved: boolean;
+  workflow_id: string;
+  action: 'approve' | 'reject' | 'revise';
   feedback?: string;
 }
 

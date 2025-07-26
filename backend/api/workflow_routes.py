@@ -112,16 +112,48 @@ async def get_current_workflow_status() -> Dict[str, Any]:
     Get the status of the current active workflow.
     
     Returns:
-        Current workflow status or 404 if no active workflow
+        Current workflow status or idle if no active workflow
     """
     try:
         state_manager = get_state_manager()
-        # Get the most recent active workflow
-        # For now, we'll use a simple approach - check if there's any active workflow
-        # In a production system, you might want to track current user's workflow
         
-        # This is a simplified implementation - in reality you'd want user session management
-        return {"status": "idle", "message": "No active workflow"}
+        # Get list of active workflows
+        active_workflow_ids = state_manager.list_active_workflows()
+        
+        if not active_workflow_ids:
+            return {"status": "idle", "message": "No active workflow"}
+        
+        # For now, get the most recent workflow (last in the list)
+        # In a production system, you'd want proper user session management
+        current_workflow_id = active_workflow_ids[-1]
+        workflow_state = state_manager.get_workflow_state(current_workflow_id)
+        
+        if not workflow_state:
+            return {"status": "idle", "message": "No active workflow"}
+        
+        # Convert the workflow state to the format expected by frontend
+        return {
+            "workflow_id": workflow_state["workflow_id"],
+            "status": workflow_state["status"].value if hasattr(workflow_state["status"], 'value') else workflow_state["status"],
+            "feature_name": workflow_state["feature_name"],
+            "current_phase": workflow_state["current_phase"].value if hasattr(workflow_state["current_phase"], 'value') else workflow_state["current_phase"],
+            "pending_approval": workflow_state.get("pending_approval"),
+            "created_at": workflow_state["created_at"],
+            "updated_at": workflow_state["updated_at"],
+            "requirements": {
+                "content": workflow_state.get("requirements_content"),
+                "approval_status": "approved" if workflow_state.get("requirements_approved") else ("pending" if workflow_state.get("pending_approval") == "requirements" else "not_generated")
+            } if workflow_state.get("requirements_content") else None,
+            "design": {
+                "content": workflow_state.get("design_content"),
+                "approval_status": "approved" if workflow_state.get("design_approved") else ("pending" if workflow_state.get("pending_approval") == "design" else "not_generated")
+            } if workflow_state.get("design_content") else None,
+            "tasks": {
+                "content": workflow_state.get("tasks_content"),
+                "approval_status": "approved" if workflow_state.get("tasks_approved") else ("pending" if workflow_state.get("pending_approval") == "tasks" else "not_generated")
+            } if workflow_state.get("tasks_content") else None
+        }
+        
     except Exception as e:
         logger.error(f"Error getting workflow status: {e}")
         raise HTTPException(
