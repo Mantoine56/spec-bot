@@ -1,0 +1,414 @@
+# ==============================================================================
+# SPEC-BOT PROJECT .GITIGNORE
+# ==============================================================================
+
+# ==============================================================================
+# PYTHON BACKEND
+# ==============================================================================
+
+# Virtual Environments
+backend/venv/
+backend/env/
+backend/.venv/
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# celery beat schedule file
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ==============================================================================
+# REACT FRONTEND (Future)
+# ==============================================================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Production builds
+frontend/dist/
+frontend/build/
+dist/
+build/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# ESLint cache
+.eslintcache
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache/
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# ==============================================================================
+# ENVIRONMENT & CONFIGURATION FILES
+# ==============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.example
+
+# API Keys and Secrets
+*.key
+*.pem
+*.crt
+secrets/
+config/secrets/
+
+# Configuration files with sensitive data
+config.json
+secrets.json
+credentials.json
+
+# ==============================================================================
+# GENERATED CONTENT & OUTPUTS
+# ==============================================================================
+
+# Generated specifications and backups
+.specbot/
+backend/.specbot/
+
+# Generated documentation
+docs/_build/
+docs/build/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Log files
+*.log
+logs/
+backend/logs/
+frontend/logs/
+
+# Debug files
+debug.log
+error.log
+
+# ==============================================================================
+# IDE & EDITOR FILES
+# ==============================================================================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Atom
+.atom/
+
+# ==============================================================================
+# OPERATING SYSTEM FILES
+# ==============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ==============================================================================
+# DATABASE & CACHE FILES
+# ==============================================================================
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# Redis dumps
+dump.rdb
+
+# Cache directories
+.cache/
+cache/
+.npm/
+.yarn/
+
+# ==============================================================================
+# TESTING & CI/CD
+# ==============================================================================
+
+# Test results
+test-results/
+playwright-report/
+test-output/
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Allure reports
+allure-results/
+allure-report/
+
+# ==============================================================================
+# DOCKER
+# ==============================================================================
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# ==============================================================================
+# MISC
+# ==============================================================================
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Large files (should use Git LFS)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.large
+
+# Generated certificates
+*.p12
+*.pfx
+
+# Temporary Python files
+test_*.py
+debug_*.py
+temp_*.py
+
+# Generated by our debug scripts
+backend/test_*.py
+backend/debug_*.py
+
+# Package-lock files (choose one based on package manager preference)
+# Uncomment the one you DON'T want to track:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ==============================================================================
+# PROJECT SPECIFIC
+# ==============================================================================
+
+# Our generated specifications (optional - you might want to track some)
+# Uncomment if you want to ignore ALL generated specs:
+# backend/.specbot/specs/
+# backend/.specbot/backups/
+
+# Keep example specifications but ignore generated ones
+backend/.specbot/specs/*/
+backend/.specbot/backups/*/
+
+# But track the example spec
+!variant-system-enhancement/ 
