@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useWorkflow } from '../contexts/WorkflowContext';
 import DocumentModal from './DocumentModal';
-import MarkdownRenderer from './MarkdownRenderer';
 
 /**
  * Document sidebar component that displays generated documents
@@ -45,121 +44,94 @@ const DocumentSidebar: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-4">
         {/* Requirements Document */}
-        <div className={`card p-4 ${workflowState?.requirements ? '' : 'opacity-50'}`}>
-          <h4 className="font-medium text-gray-700 mb-2">Requirements</h4>
+        <div className={`border border-gray-200 rounded-lg p-3 ${workflowState?.requirements ? '' : 'opacity-50'}`}>
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-medium text-gray-700 text-sm">Requirements</h4>
+            {workflowState?.requirements?.content && (
+              <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                workflowState.requirements.approval_status === 'approved' 
+                  ? 'bg-green-100 text-green-700' 
+                  : workflowState.requirements.approval_status === 'pending'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {workflowState.requirements.approval_status === 'pending' ? 'Ready for Review' : 
+                 workflowState.requirements.approval_status === 'approved' ? 'Approved' : 'Generated'}
+              </span>
+            )}
+          </div>
           {workflowState?.requirements?.content ? (
-            <div className="text-sm">
-              <div className="mb-2">
-                <span className={`inline-block px-2 py-1 rounded text-xs ${
-                  workflowState.requirements.approval_status === 'approved' 
-                    ? 'bg-green-100 text-green-800' 
-                    : workflowState.requirements.approval_status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {workflowState.requirements.approval_status === 'pending' ? 'Ready for Review' : 
-                   workflowState.requirements.approval_status === 'approved' ? 'Approved' : 'Generated'}
-                </span>
-              </div>
-              <div className="max-h-48 overflow-y-auto bg-gray-50 p-3 rounded text-xs">
-                <MarkdownRenderer 
-                  content={workflowState.requirements.content.substring(0, 500) + 
-                    (workflowState.requirements.content.length > 500 ? '...' : '')}
-                  isPreview={true}
-                />
-              </div>
-              {workflowState.requirements.content.length > 500 && (
-                <button 
-                  onClick={() => openModal('Requirements Document', workflowState.requirements!.content)}
-                  className="mt-2 text-xs text-blue-600 hover:text-blue-800"
-                >
-                  View Full Document
-                </button>
-              )}
-            </div>
+            <button 
+              onClick={() => openModal('Requirements Document', workflowState.requirements!.content)}
+              className="w-full text-left text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded px-2 py-1 transition-colors"
+            >
+              View Document →
+            </button>
           ) : (
-            <p className="text-sm text-gray-500">
-              Generated requirements document will appear here
+            <p className="text-xs text-gray-500">
+              Will be generated first
             </p>
           )}
         </div>
 
         {/* Design Document */}
-        <div className={`card p-4 ${workflowState?.design ? '' : 'opacity-50'}`}>
-          <h4 className="font-medium text-gray-700 mb-2">Design</h4>
+        <div className={`border border-gray-200 rounded-lg p-3 ${workflowState?.design ? '' : 'opacity-50'}`}>
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-medium text-gray-700 text-sm">Design</h4>
+            {workflowState?.design?.content && (
+              <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                workflowState.design.approval_status === 'approved' 
+                  ? 'bg-green-100 text-green-700' 
+                  : workflowState.design.approval_status === 'pending'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {workflowState.design.approval_status === 'pending' ? 'Ready for Review' : 
+                 workflowState.design.approval_status === 'approved' ? 'Approved' : 'Generated'}
+              </span>
+            )}
+          </div>
           {workflowState?.design?.content ? (
-            <div className="text-sm">
-              <div className="mb-2">
-                <span className={`inline-block px-2 py-1 rounded text-xs ${
-                  workflowState.design.approval_status === 'approved' 
-                    ? 'bg-green-100 text-green-800' 
-                    : workflowState.design.approval_status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {workflowState.design.approval_status === 'pending' ? 'Ready for Review' : 
-                   workflowState.design.approval_status === 'approved' ? 'Approved' : 'Generated'}
-                </span>
-              </div>
-              <div className="max-h-48 overflow-y-auto bg-gray-50 p-3 rounded text-xs">
-                <MarkdownRenderer 
-                  content={workflowState.design.content.substring(0, 500) + 
-                    (workflowState.design.content.length > 500 ? '...' : '')}
-                  isPreview={true}
-                />
-              </div>
-              {workflowState.design.content.length > 500 && (
-                <button 
-                  onClick={() => openModal('Design Document', workflowState.design!.content)}
-                  className="mt-2 text-xs text-blue-600 hover:text-blue-800"
-                >
-                  View Full Document
-                </button>
-              )}
-            </div>
+            <button 
+              onClick={() => openModal('Design Document', workflowState.design!.content)}
+              className="w-full text-left text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded px-2 py-1 transition-colors"
+            >
+              View Document →
+            </button>
           ) : (
-            <p className="text-sm text-gray-500">
-              Generated design document will appear here
+            <p className="text-xs text-gray-500">
+              Generated after requirements approval
             </p>
           )}
         </div>
 
         {/* Tasks Document */}
-        <div className={`card p-4 ${workflowState?.tasks ? '' : 'opacity-50'}`}>
-          <h4 className="font-medium text-gray-700 mb-2">Tasks</h4>
+        <div className={`border border-gray-200 rounded-lg p-3 ${workflowState?.tasks ? '' : 'opacity-50'}`}>
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-medium text-gray-700 text-sm">Tasks</h4>
+            {workflowState?.tasks?.content && (
+              <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                workflowState.tasks.approval_status === 'approved' 
+                  ? 'bg-green-100 text-green-700' 
+                  : workflowState.tasks.approval_status === 'pending'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {workflowState.tasks.approval_status === 'pending' ? 'Ready for Review' : 
+                 workflowState.tasks.approval_status === 'approved' ? 'Approved' : 'Generated'}
+              </span>
+            )}
+          </div>
           {workflowState?.tasks?.content ? (
-            <div className="text-sm">
-              <div className="mb-2">
-                <span className={`inline-block px-2 py-1 rounded text-xs ${
-                  workflowState.tasks.approval_status === 'approved' 
-                    ? 'bg-green-100 text-green-800' 
-                    : workflowState.tasks.approval_status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {workflowState.tasks.approval_status === 'pending' ? 'Ready for Review' : 
-                   workflowState.tasks.approval_status === 'approved' ? 'Approved' : 'Generated'}
-                </span>
-              </div>
-              <div className="max-h-48 overflow-y-auto bg-gray-50 p-3 rounded text-xs">
-                <MarkdownRenderer 
-                  content={workflowState.tasks.content.substring(0, 500) + 
-                    (workflowState.tasks.content.length > 500 ? '...' : '')}
-                  isPreview={true}
-                />
-              </div>
-              {workflowState.tasks.content.length > 500 && (
-                <button 
-                  onClick={() => openModal('Tasks Document', workflowState.tasks!.content)}
-                  className="mt-2 text-xs text-blue-600 hover:text-blue-800"
-                >
-                  View Full Document
-                </button>
-              )}
-            </div>
+            <button 
+              onClick={() => openModal('Tasks Document', workflowState.tasks!.content)}
+              className="w-full text-left text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded px-2 py-1 transition-colors"
+            >
+              View Document →
+            </button>
           ) : (
-            <p className="text-sm text-gray-500">
-              Generated task list will appear here
+            <p className="text-xs text-gray-500">
+              Generated after design approval
             </p>
           )}
         </div>
