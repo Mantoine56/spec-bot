@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Message from './Message';
 import MessageInput from './MessageInput';
+import TechStackPanel from './TechStackPanel';
 import { workflowApi, ApiError } from '../services/api';
 import { useWorkflow } from '../contexts/WorkflowContext';
+import { formatTechStackForPrompt } from '../services/techStackService';
 import type { MessageProps } from './Message';
 import type { SpecState } from '../services/api';
+import type { TechStackProfile } from '../services/techStackService';
 
 /**
  * Main chat interface component
@@ -20,6 +23,10 @@ const ChatInterface: React.FC = () => {
   // Track what we've already shown to prevent duplicates
   const [shownStatuses, setShownStatuses] = useState<Set<string>>(new Set());
   const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // Tech stack management
+  const [selectedTechStack, setSelectedTechStack] = useState<TechStackProfile | null>(null);
+  const [techStackChanged, setTechStackChanged] = useState(false);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -316,6 +323,68 @@ const ChatInterface: React.FC = () => {
   };
 
   /**
+   * Handle tech stack profile changes
+   */
+  const handleTechStackChange = (profile: TechStackProfile | null) => {
+    const previousStack = selectedTechStack;
+    setSelectedTechStack(profile);
+    
+    // If we're in the middle of a workflow and the tech stack changed, 
+    // mark it for potential regeneration
+    if (workflowState && workflowState.status !== 'idle' && previousStack?.id !== profile?.id) {
+      setTechStackChanged(true);
+      
+      // Show a message about the tech stack change
+      if (profile) {
+        addMessage({
+          type: 'system',
+          content: `Tech stack updated to "${profile.name}". You can regenerate the current phase to incorporate these changes.`,
+          timestamp: new Date(),
+        });
+      } else {
+        addMessage({
+          type: 'system', 
+          content: 'Tech stack cleared. Future generations will not include specific technology constraints.',
+          timestamp: new Date(),
+        });
+      }
+    }
+  };
+
+  /**
+   * Handle regeneration with new tech stack
+   */
+  const handleRegenerateWithTechStack = async () => {
+    if (!selectedTechStack || !workflowState) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Create a regeneration request with tech stack context
+      const techStackContext = formatTechStackForPrompt(selectedTechStack);
+      const regenerationMessage = `Please regenerate the current phase using the updated technology stack:\n\n${techStackContext}`;
+      
+      // Send as feedback to trigger regeneration
+      await handleWorkflowFeedback(regenerationMessage);
+      
+      // Clear the tech stack changed flag
+      setTechStackChanged(false);
+      
+      // Add a system message
+      addMessage({
+        type: 'system',
+        content: `Regenerating current phase with "${selectedTechStack.name}" tech stack...`,
+        timestamp: new Date(),
+      });
+      
+    } catch (error) {
+      console.error('Tech stack regeneration error:', error);
+      setError('Failed to regenerate with new tech stack. Please try again.');
+    }
+  };
+
+  /**
    * Handle user message submission
    */
   const handleSendMessage = async (message: string) => {
@@ -336,15 +405,31 @@ const ChatInterface: React.FC = () => {
         // Existing workflow - treat as feedback
         await handleWorkflowFeedback(message);
       } else {
-        // New workflow
+        // New workflow - include tech stack context if available
         const featureName = extractFeatureName(message);
+        let enhancedDescription = message;
+        
+        // Add tech stack context to the description if a profile is selected
+        if (selectedTechStack) {
+          const techStackContext = formatTechStackForPrompt(selectedTechStack);
+          enhancedDescription = `${message}\n\n**Technology Stack:**\n${techStackContext}`;
+          
+          // Show user that tech stack was included
+          addMessage({
+            type: 'system',
+            content: `Using tech stack: ${selectedTechStack.name} (${selectedTechStack.detailLevel} detail level)`,
+            timestamp: new Date(),
+          });
+        }
+        
         const state = await workflowApi.startWorkflow({
           feature_name: featureName,
-          description: message,
+          description: enhancedDescription,
         });
 
         setWorkflowState(state);
         setShownStatuses(new Set()); // Reset for new workflow
+        setTechStackChanged(false); // Reset tech stack change flag
         pollWorkflowStatus();
       }
     } catch (error) {
@@ -415,6 +500,18 @@ const ChatInterface: React.FC = () => {
               </div>
               
               <div className="flex items-center space-x-3">
+                {/* Tech Stack Regeneration Button */}
+                {techStackChanged && selectedTechStack && (
+                  <button
+                    onClick={handleRegenerateWithTechStack}
+                    disabled={isLoading}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={`Regenerate current phase with ${selectedTechStack.name}`}
+                  >
+                    {isLoading ? 'Regenerating...' : 'Regenerate with Tech Stack'}
+                  </button>
+                )}
+
                 {needsApproval && (
                   <>
                     <button
@@ -443,6 +540,13 @@ const ChatInterface: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Tech Stack Panel */}
+        <div className="px-6 py-3">
+          <TechStackPanel 
+            onTechStackChange={handleTechStackChange}
+          />
+        </div>
 
         {/* Message input */}
         <MessageInput

@@ -25,6 +25,7 @@ Given a feature description, you should:
 3. Identify non-functional requirements (performance, security, usability, etc.)
 4. Specify data requirements and system constraints  
 5. Assess risks and success criteria
+6. **CRITICAL**: If a specific technology stack is provided, ensure all requirements align with and leverage those technologies
 
 **CRITICAL: Use this EXACT format for functional requirements:**
 
@@ -62,6 +63,7 @@ Given feature requirements, you should:
 4. Design user interface components and workflows
 5. Address security, performance, and scalability considerations
 6. Plan testing strategies and deployment approaches
+7. **CRITICAL**: If a specific technology stack is provided in the requirements, you MUST design the solution using ONLY those technologies. Do not substitute with different technologies.
 
 **CRITICAL: Use this EXACT structure for your design document:**
 
@@ -139,6 +141,7 @@ Given requirements and design documents, you should:
 4. Plan resource requirements and timeline
 5. Identify risks and mitigation strategies
 6. Define success metrics and quality assurance processes
+7. **IMPORTANT**: Ensure all tasks align with the specified technology stack and development approach outlined in the requirements and design
 
 **CRITICAL: Use this EXACT format for your response:**
 
@@ -195,6 +198,8 @@ async def generate_requirements_node(state: WorkflowGraphState) -> WorkflowGraph
 **Description:** {state['initial_description']}
 
 {_build_context_from_conversation(state)}
+
+**IMPORTANT**: If the description above contains a "Technology Stack" section, you must ensure all requirements are designed specifically for those technologies. Do not ignore or substitute the specified tech stack.
 
 Please provide a detailed requirements document that covers all aspects of this feature, including functional requirements, non-functional requirements, data requirements, integration needs, constraints, and risk assessment."""
             )
@@ -290,7 +295,9 @@ async def generate_design_node(state: WorkflowGraphState) -> WorkflowGraphState:
 
 {_build_context_from_conversation(state)}
 
-Create a detailed design document that addresses architecture, data models, API design, user interface, security, performance, and implementation considerations. The design should be practical and implementable based on the requirements."""
+**CRITICAL TECHNOLOGY CONSTRAINT**: If the feature description or requirements specify a particular technology stack (e.g., .NET, React, Azure SQL Database, etc.), you MUST design the solution using EXACTLY those technologies. Do not substitute with alternatives like PostgreSQL, Node.js, or other technologies not specified.
+
+Create a detailed design document that addresses architecture, data models, API design, user interface, security, performance, and implementation considerations. The design should be practical and implementable based on the requirements using the specified technology stack."""
             )
         ]
         
