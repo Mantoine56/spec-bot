@@ -445,7 +445,7 @@ const ChatInterface: React.FC = () => {
   };
 
   // Determine if workflow needs approval
-  const needsApproval = workflowState?.pending_approval !== undefined;
+  const needsApproval = workflowState?.pending_approval != null && workflowState?.status !== 'completed';
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -489,75 +489,99 @@ const ChatInterface: React.FC = () => {
       </div>
 
       {/* Fixed bottom area */}
-      <div className="flex-shrink-0 border-t border-gray-200">
+      <div className="flex-shrink-0">
         {/* Action bar for workflow controls */}
         {workflowState && workflowState.status !== 'idle' && (
-          <div className="bg-gray-50 px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">Feature:</span> {workflowState.feature_name} • 
-                <span className="font-medium"> Status:</span> {workflowState.status?.replace(/_/g, ' ')}
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                {/* Tech Stack Regeneration Button */}
-                {techStackChanged && selectedTechStack && (
-                  <button
-                    onClick={handleRegenerateWithTechStack}
-                    disabled={isLoading}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={`Regenerate current phase with ${selectedTechStack.name}`}
-                  >
-                    {isLoading ? 'Regenerating...' : 'Regenerate with Tech Stack'}
-                  </button>
-                )}
-
-                {needsApproval && (
-                  <>
-                    <button
-                      onClick={handleApprove}
-                      disabled={isLoading}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? 'Approving...' : 'Approve'}
-                    </button>
-                    <button
-                      onClick={handleRequestChanges}
-                      className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                    >
-                      Request Changes
-                    </button>
-                  </>
-                )}
+          <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium text-gray-700">
+                      {workflowState.feature_name}
+                    </span>
+                  </div>
+                  <div className="text-xs px-2 py-1 bg-gray-200 text-gray-600 rounded-full font-medium">
+                    {workflowState.status?.replace(/_/g, ' ')}
+                  </div>
+                </div>
                 
-                <button
-                  onClick={handleReset}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                >
-                  Reset Workflow
-                </button>
+                <div className="flex items-center space-x-2">
+                  {/* Tech Stack Regeneration Button */}
+                  {techStackChanged && selectedTechStack && (
+                    <button
+                      onClick={handleRegenerateWithTechStack}
+                      disabled={isLoading}
+                      className="inline-flex items-center px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      title={`Regenerate current phase with ${selectedTechStack.name}`}
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      {isLoading ? 'Regenerating...' : 'Regenerate'}
+                    </button>
+                  )}
+
+                  {needsApproval && (
+                    <>
+                      <button
+                        onClick={handleApprove}
+                        disabled={isLoading}
+                        className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {isLoading ? 'Approving...' : 'Approve'}
+                      </button>
+                      <button
+                        onClick={handleRequestChanges}
+                        className="inline-flex items-center px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-md transition-colors shadow-sm"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Request Changes
+                      </button>
+                    </>
+                  )}
+                  
+                  <button
+                    onClick={handleReset}
+                    className="inline-flex items-center px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-md transition-colors shadow-sm"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reset
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Tech Stack Panel */}
-        <div className="px-6 py-3">
-          <TechStackPanel 
-            onTechStackChange={handleTechStackChange}
-          />
-        </div>
+        {/* Tech Stack Panel & Message Input */}
+        <div className="bg-white border-t border-gray-200">
+          <div className="px-6 py-4 space-y-4">
+            {/* Tech Stack Panel */}
+            <TechStackPanel 
+              onTechStackChange={handleTechStackChange}
+            />
 
-        {/* Message input */}
-        <MessageInput
+            {/* Message input */}
+            <MessageInput
           onSendMessage={handleSendMessage}
           disabled={isLoading}
-          placeholder={
-            workflowState?.pending_approval 
-              ? "Provide feedback or click 'Approve' above..."
-              : "Describe your feature idea..."
-          }
-        />
+            placeholder={
+              workflowState?.pending_approval 
+                ? "Provide feedback or click 'Approve' above..."
+                : "Describe your feature idea..."
+            }
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

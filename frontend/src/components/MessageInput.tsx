@@ -57,7 +57,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4">
+    <div className="bg-white">
       <form onSubmit={handleSubmit} className="flex items-end space-x-3">
         {/* Message textarea */}
         <div className="flex-1 relative">
@@ -69,13 +69,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
-            className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-            style={{ minHeight: '48px', maxHeight: '200px' }}
+            className="w-full resize-none border-2 border-gray-200 rounded-xl px-4 py-3 pr-14 focus:outline-none focus:ring-0 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:border-gray-200 transition-colors duration-200 text-gray-900 placeholder-gray-500"
+            style={{ minHeight: '52px', maxHeight: '200px' }}
           />
           
           {/* Character count (when approaching limit) */}
           {message.length > 800 && (
-            <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+            <div className="absolute bottom-3 right-14 text-xs text-gray-400 bg-white px-1">
               {message.length}/1000
             </div>
           )}
@@ -85,7 +85,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         <button
           type="submit"
           disabled={!message.trim() || disabled}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg p-3 transition-colors duration-200 flex-shrink-0"
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl p-3 transition-all duration-200 flex-shrink-0 shadow-sm hover:shadow-md disabled:shadow-none group"
           title={disabled ? 'Please wait...' : 'Send message (Enter)'}
         >
           {disabled ? (
@@ -105,11 +105,11 @@ const MessageInput: React.FC<MessageInputProps> = ({
               />
             </svg>
           ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 transform transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
+                strokeWidth={2.5}
                 d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
               />
             </svg>
@@ -118,10 +118,26 @@ const MessageInput: React.FC<MessageInputProps> = ({
       </form>
 
       {/* Help text */}
-      <div className="mt-2 text-xs text-gray-500 flex justify-between items-center">
-        <span>Press Enter to send, Shift+Enter for new line</span>
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex items-center space-x-4 text-xs text-gray-400">
+          <span className="flex items-center space-x-1">
+            <kbd className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-mono">Enter</kbd>
+            <span>to send</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <div className="flex items-center space-x-0.5">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-mono">Shift</kbd>
+              <span className="text-gray-300">+</span>
+              <kbd className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-mono">Enter</kbd>
+            </div>
+            <span>for new line</span>
+          </span>
+        </div>
         {disabled && (
-          <span className="text-primary-600 font-medium">Processing...</span>
+          <div className="flex items-center space-x-1 text-xs text-blue-600">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span className="font-medium">Processing...</span>
+          </div>
         )}
       </div>
     </div>
