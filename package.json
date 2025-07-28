@@ -1,0 +1,37 @@
+{
+  "name": "spec-bot",
+  "version": "1.0.0",
+  "description": "AI-Powered Specification Generator",
+  "private": true,
+  "scripts": {
+    "dev": "node -e \"console.log('🚀 Starting Spec-Bot...'); console.log('Choose your startup method:'); console.log('1. ./start-dev.sh (Unix/Linux/macOS)'); console.log('2. start-dev.bat (Windows)'); console.log('3. python start-dev.py (Cross-platform)'); console.log(''); console.log('Or run npm run dev:unix or npm run dev:windows')\"",
+    "dev:unix": "./start-dev.sh",
+    "dev:windows": "start-dev.bat",
+    "dev:python": "python start-dev.py",
+    "backend": "cd backend && python main.py",
+    "frontend": "cd frontend && npm run dev",
+    "install:all": "cd backend && pip install -r requirements.txt && cd ../frontend && npm install",
+    "test": "cd backend && python test_end_to_end.py",
+    "build": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "AI",
+    "specification",
+    "generator",
+    "GPT-4",
+    "documentation",
+    "requirements",
+    "design",
+    "tasks"
+  ],
+  "author": "Spec Bot",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/spec-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/spec-bot/issues"
+  },
+  "homepage": "https://github.com/yourusername/spec-bot#readme"
+} 

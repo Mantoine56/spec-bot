@@ -40,6 +40,7 @@ Spec-Bot is a **production-ready** AI-powered application that combines **OpenAI
 - 🛡️ **Error Handling** - Robust error recovery and user feedback
 - ⚡ **Performance** - ~2.5 minutes for complete specification generation
 - 🔒 **Secure** - API keys handled securely with localStorage override
+- 🎯 **One-Command Startup** - Cross-platform scripts for instant development setup
 
 ## 🏗️ Architecture
 
@@ -72,7 +73,7 @@ Spec-Bot is a **production-ready** AI-powered application that combines **OpenAI
 - **Python 3.9+** (for backend)
 - **OpenAI API Key** ([Get one here](https://platform.openai.com/api-keys))
 
-### Installation
+### 🎯 **One-Command Startup (Recommended)**I don't know what you do. Which politicians look out for minors? Well, God, if you're 5'3", what the world's gonna do for people like me, people like you, just wake up and not be true. Wanna know what you think? Wanna know what you do, and they don't think you know, but I know that you do 'cause your dollar ain't and it's taxed to no end. Cause I've been selling my soul overtime hours for pain.
 
 1. **Clone the repository**
    ```bash
@@ -80,7 +81,59 @@ Spec-Bot is a **production-ready** AI-powered application that combines **OpenAI
    cd spec-bot
    ```
 
-2. **Set up the backend**
+2. **Add your OpenAI API key**
+   ```bash
+   cp .env.template backend/.env
+   # Edit backend/.env and add your OPENAI_API_KEY
+   ```
+
+3. **Start everything with one command**
+   
+   **macOS/Linux:**
+   ```bash
+   ./start-dev.sh
+   # OR
+   npm run dev:unix
+   ```
+   
+   **Windows:**
+   ```cmd
+   start-dev.bat
+   # OR
+   npm run dev:windows
+   ```
+   
+   **Cross-platform (Python):**
+   ```bash
+   python start-dev.py
+   # OR
+   npm run dev:python
+   ```
+   
+   **Simple npm helper:**
+   ```bash
+   npm run dev  # Shows all startup options
+   ```
+
+4. **That's it!** 🎉
+   ```
+   🌐 Frontend: http://localhost:5173
+   🔌 Backend API: http://localhost:8000
+   📚 API Docs: http://localhost:8000/docs
+   ```
+
+The startup scripts will automatically:
+- ✅ Create Python virtual environment if needed
+- ✅ Install all dependencies (backend + frontend)
+- ✅ Start both servers concurrently
+- ✅ Handle cleanup when you press Ctrl+C
+
+### 🔧 **Manual Setup (Alternative)**
+
+<details>
+<summary>Click to expand manual setup instructions</summary>
+
+1. **Set up the backend**
    ```bash
    cd backend
    python -m venv venv
@@ -88,19 +141,19 @@ Spec-Bot is a **production-ready** AI-powered application that combines **OpenAI
    pip install -r requirements.txt
    ```
 
-3. **Set up the frontend**
+2. **Set up the frontend**
    ```bash
    cd ../frontend
    npm install
    ```
 
-4. **Configure environment**
+3. **Configure environment**
    ```bash
    cp ../.env.template .env
    # Edit .env and add your OpenAI API key
    ```
 
-5. **Start the application**
+4. **Start the application**
    
    **Backend** (Terminal 1):
    ```bash
@@ -115,12 +168,7 @@ Spec-Bot is a **production-ready** AI-powered application that combines **OpenAI
    npm run dev
    ```
 
-6. **Open the application**
-   ```
-   🌐 Frontend: http://localhost:5173
-   🔌 Backend API: http://localhost:8000
-   📚 API Docs: http://localhost:8000/docs
-   ```
+</details>
 
 ## 💡 How to Use
 
@@ -218,6 +266,10 @@ CREATE TABLE users (
 
 ```
 spec-bot/
+├── 🚀 **Startup Scripts**      # One-command development startup
+│   ├── start-dev.sh           # Unix/Linux/macOS startup script
+│   ├── start-dev.bat          # Windows batch script  
+│   └── start-dev.py           # Cross-platform Python script
 ├── 🖥️ frontend/              # React + TypeScript frontend
 │   ├── src/
 │   │   ├── components/      # React components
@@ -229,7 +281,10 @@ spec-bot/
 │   │   ├── contexts/        # React Context for state
 │   │   ├── services/        # API client
 │   │   └── main.tsx        # App entry point
+│   ├── public/             # Static assets
+│   │   └── favicon.svg     # Custom Spec-Bot favicon
 │   ├── package.json        # Frontend dependencies
+│   ├── index.html          # HTML template with SEO meta tags
 │   └── tailwind.config.js  # Styling configuration
 ├── 🔧 backend/               # FastAPI + LangGraph backend
 │   ├── api/                # REST API endpoints
@@ -244,6 +299,7 @@ spec-bot/
 │   ├── llm_client.py      # OpenAI/Anthropic integration
 │   └── requirements.txt   # Python dependencies
 ├── .env.template          # Environment variables template
+├── package.json           # Root package.json with dev scripts
 ├── implementation.md      # Detailed implementation progress
 └── README.md             # This file
 ```
