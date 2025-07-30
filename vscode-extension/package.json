@@ -1,0 +1,106 @@
+{
+  "name": "spec-bot",
+  "displayName": "Spec-Bot",
+  "description": "AI-powered specification generation with human-in-the-loop workflow",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "spec-bot.openPanel",
+        "title": "Open Spec-Bot",
+        "category": "Spec-Bot",
+        "icon": "$(robot)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "spec-bot.openPanel",
+          "title": "Spec-Bot: Generate Specification"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "spec-bot.openPanel",
+          "when": "view == spec-bot.panel",
+          "group": "navigation"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "spec-bot.panel",
+          "name": "Spec-Bot",
+          "when": "spec-bot.panelVisible"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Spec-Bot",
+      "properties": {
+        "spec-bot.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key for GPT models",
+          "order": 1
+        },
+        "spec-bot.anthropicApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API Key for Claude models",
+          "order": 2
+        },
+        "spec-bot.defaultProvider": {
+          "type": "string",
+          "enum": ["openai", "anthropic"],
+          "default": "openai",
+          "description": "Default LLM provider",
+          "order": 3
+        },
+        "spec-bot.defaultModel": {
+          "type": "string",
+          "default": "gpt-4.1",
+          "description": "Default model to use",
+          "order": 4
+        },
+        "spec-bot.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Spec-Bot backend server URL",
+          "order": 5
+        },
+        "spec-bot.autoStartBackend": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start the backend server if not running",
+          "order": 6
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
