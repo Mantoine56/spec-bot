@@ -5,6 +5,9 @@
 
 import * as vscode from 'vscode';
 import axios from 'axios';
+import { FileManagerService, SpecificationFiles } from '../utils/fileManager';
+import { getProjectContext, ProjectContext } from '../utils/projectDetector';
+import { ContentRenderer, renderMarkdown } from '../utils/contentRenderer';
 
 export class SpecBotPanel {
     /**
@@ -145,6 +148,16 @@ export class SpecBotPanel {
                 // Check if the backend is running
                 await this._checkBackendStatus(backendUrl);
                 break;
+
+            case 'saveSpecifications':
+                // Handle saving completed specifications to workspace
+                await this._saveSpecificationsToWorkspace(message.featureName, message.specifications);
+                break;
+
+            case 'getProjectContext':
+                // Get project context for smart suggestions
+                await this._getProjectContext();
+                break;
         }
     }
 
@@ -181,6 +194,81 @@ export class SpecBotPanel {
             }
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to save specs: ${error}`);
+        }
+    }
+
+    private async _saveSpecificationsToWorkspace(featureName: string, specifications: SpecificationFiles) {
+        console.log('💾 Saving specifications to workspace...', { featureName, specifications });
+        
+        try {
+            // Validate workspace
+            if (!FileManagerService.validateWorkspace()) {
+                return;
+            }
+
+            // Save all specifications using FileManagerService
+            const result = await FileManagerService.saveAllSpecifications(featureName, specifications);
+            
+            if (result.success && result.files.length > 0) {
+                console.log('✅ Successfully saved specifications:', result.files.map(f => f.fsPath));
+                
+                // Auto-open the generated files
+                await FileManagerService.openSpecificationFiles(result.files);
+                
+                // Send success message back to webview
+                this._panel.webview.postMessage({
+                    type: 'saveSpecificationsResult',
+                    success: true,
+                    fileCount: result.files.length,
+                    message: `Successfully saved ${result.files.length} specification files and opened them in the editor!`
+                });
+                
+            } else {
+                console.error('❌ Failed to save specifications:', result.errors);
+                
+                // Send error message back to webview
+                this._panel.webview.postMessage({
+                    type: 'saveSpecificationsResult',
+                    success: false,
+                    message: `Failed to save specifications: ${result.errors.join(', ')}`
+                });
+            }
+            
+        } catch (error) {
+            console.error('❌ Error in _saveSpecificationsToWorkspace:', error);
+            
+            // Send error message back to webview
+            this._panel.webview.postMessage({
+                type: 'saveSpecificationsResult',
+                success: false,
+                message: `Error saving specifications: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _getProjectContext() {
+        console.log('🔍 Getting project context...');
+        
+        try {
+            // Analyze current project
+            const context = await getProjectContext();
+            
+            // Send project context back to webview
+            this._panel.webview.postMessage({
+                type: 'projectContext',
+                context: context
+            });
+            
+            console.log('✅ Project context sent to webview:', context);
+            
+        } catch (error) {
+            console.error('❌ Error getting project context:', error);
+            
+            // Send error back to webview
+            this._panel.webview.postMessage({
+                type: 'projectContextError',
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
     }
 
@@ -430,6 +518,18 @@ export class SpecBotPanel {
                     backendConnected = message.status === 'connected';
                     updateConnectionStatus(message);
                     break;
+                    
+                case 'saveSpecificationsResult':
+                    handleSaveSpecificationsResult(message);
+                    break;
+                    
+                case 'projectContext':
+                    handleProjectContext(message.context);
+                    break;
+                    
+                case 'projectContextError':
+                    handleProjectContextError(message.error);
+                    break;
             }
         });
 
@@ -462,6 +562,9 @@ export class SpecBotPanel {
                 <div style="padding: 20px; height: 100vh; display: flex; flex-direction: column;">
                     <h2 style="margin-top: 0; color: var(--vscode-foreground);">🤖 Spec-Bot</h2>
                     
+                    <!-- Project Context Info -->
+                    <div class="header-info"></div>
+                    
                     <!-- Progress Bar -->
                     <div id="progressBar" style="display: none; background: var(--vscode-secondary-background); border: 1px solid var(--vscode-border); border-radius: 4px; padding: 12px; margin-bottom: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -487,10 +590,21 @@ export class SpecBotPanel {
                         <button onclick="handleStartWorkflow()" id="generateBtn">Generate Spec</button>
                         <button onclick="window.specBotApi.openSettings()">Settings</button>
                     </div>
+                    
+                    <!-- Smart Suggestions -->
+                    <div id="suggestions"></div>
                 </div>
             \`;
             
             console.log('🎯 React app initialized, polling will start when workflow begins');
+            
+            // Theme system temporarily disabled to fix loading issues
+            console.log('🎨 Theme system temporarily disabled');
+            
+            // Request project context for smart suggestions
+            vscode.postMessage({
+                type: 'getProjectContext'
+            });
         }
 
         // Global workflow state
@@ -518,13 +632,30 @@ export class SpecBotPanel {
                 input.disabled = true;
                 document.getElementById('generateBtn').disabled = true;
                 
-                // Start the workflow
-                const response = await window.specBotApi.call('POST', '/api/spec/start', {
+                // Prepare workflow data with project context
+                const workflowData = {
                     feature_name: idea,
                     description: idea,
                     llm_provider: 'openai',
                     model_name: 'gpt-4.1'
-                });
+                };
+                
+                // Add project context if available
+                if (projectContext) {
+                    workflowData.project_context = {
+                        project_type: projectContext.projectType,
+                        tech_stack: projectContext.techStack,
+                        framework: projectContext.framework,
+                        context_prompt: projectContext.contextPrompt,
+                        is_monorepo: projectContext.isMonorepo,
+                        has_backend: projectContext.hasBackend,
+                        has_frontend: projectContext.hasFrontend
+                    };
+                    console.log('🎯 Including project context in workflow:', workflowData.project_context);
+                }
+                
+                // Start the workflow
+                const response = await window.specBotApi.call('POST', '/api/spec/start', workflowData);
                 
                 console.log('Workflow started:', response);
                 
@@ -857,18 +988,56 @@ export class SpecBotPanel {
             
             const approvalContent = \`
                 <div style="margin: 16px 0;">
-                    <h3>📋 Requirements Generated</h3>
-                    <div style="background: var(--vscode-input-background); border: 1px solid var(--vscode-border); padding: 12px; border-radius: 4px; margin: 8px 0; max-height: 300px; overflow-y: auto; white-space: pre-line; font-family: var(--vscode-editor-font-family); font-size: 13px; line-height: 1.4;">
-\${requirements}
+                    <h3 style="color: var(--vscode-foreground); margin-bottom: 16px; font-size: 18px;">📋 Requirements Generated</h3>
+                    <div id="requirements-content-\${currentWorkflowId}" style="
+                        background: var(--vscode-editor-background); 
+                        border: 1px solid var(--vscode-panel-border); 
+                        border-radius: 6px; 
+                        margin: 8px 0; 
+                        max-height: 400px; 
+                        overflow-y: auto;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        padding: 16px;
+                    ">
+                        <div class="enhanced-content" id="requirements-rendered-\${currentWorkflowId}">
+                            <!-- Content will be rendered here -->
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button onclick="approvePhase('requirements')" style="background: var(--vscode-button-background); color: var(--vscode-button-foreground);">✅ Approve</button>
-                        <button onclick="requestChanges('requirements')" style="background: var(--vscode-secondary-background); border: 1px solid var(--vscode-border);">📝 Request Changes</button>
+                    <div style="display: flex; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--vscode-panel-border);">
+                        <button onclick="approvePhase('requirements')" style="
+                            background: var(--vscode-button-background); 
+                            color: var(--vscode-button-foreground);
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: background-color 0.2s;
+                        ">✅ Approve Requirements</button>
+                        <button onclick="requestChanges('requirements')" style="
+                            background: var(--vscode-button-secondaryBackground); 
+                            color: var(--vscode-button-secondaryForeground);
+                            border: 1px solid var(--vscode-panel-border);
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">📝 Request Changes</button>
                     </div>
                 </div>
             \`;
             
+            // Add the content to the chat
             addMessage('assistant', approvalContent);
+            
+            // Now enhance the content with syntax highlighting
+            setTimeout(() => {
+                const contentElement = document.getElementById('requirements-rendered-' + currentWorkflowId);
+                if (contentElement) {
+                    contentElement.innerHTML = renderEnhancedMarkdown(requirements);
+                }
+            }, 100);
         }
 
         function displayDesignForApproval(status) {
@@ -928,18 +1097,56 @@ export class SpecBotPanel {
             
             const approvalContent = \`
                 <div style="margin: 16px 0;">
-                    <h3>🎨 Design Document Generated</h3>
-                    <div style="background: var(--vscode-input-background); border: 1px solid var(--vscode-border); padding: 12px; border-radius: 4px; margin: 8px 0; max-height: 300px; overflow-y: auto; white-space: pre-line; font-family: var(--vscode-editor-font-family); font-size: 13px; line-height: 1.4;">
-\${design}
+                    <h3 style="color: var(--vscode-foreground); margin-bottom: 16px; font-size: 18px;">🎨 Design Document Generated</h3>
+                    <div id="design-content-\${currentWorkflowId}" style="
+                        background: var(--vscode-editor-background); 
+                        border: 1px solid var(--vscode-panel-border); 
+                        border-radius: 6px; 
+                        margin: 8px 0; 
+                        max-height: 400px; 
+                        overflow-y: auto;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        padding: 16px;
+                    ">
+                        <div class="enhanced-content" id="design-rendered-\${currentWorkflowId}">
+                            <!-- Content will be rendered here -->
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button onclick="approvePhase('design')" style="background: var(--vscode-button-background); color: var(--vscode-button-foreground);">✅ Approve</button>
-                        <button onclick="requestChanges('design')" style="background: var(--vscode-secondary-background); border: 1px solid var(--vscode-border);">📝 Request Changes</button>
+                    <div style="display: flex; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--vscode-panel-border);">
+                        <button onclick="approvePhase('design')" style="
+                            background: var(--vscode-button-background); 
+                            color: var(--vscode-button-foreground);
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: background-color 0.2s;
+                        ">✅ Approve Design</button>
+                        <button onclick="requestChanges('design')" style="
+                            background: var(--vscode-button-secondaryBackground); 
+                            color: var(--vscode-button-secondaryForeground);
+                            border: 1px solid var(--vscode-panel-border);
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">📝 Request Changes</button>
                     </div>
                 </div>
             \`;
             
+            // Add the content to the chat
             addMessage('assistant', approvalContent);
+            
+            // Now enhance the content with markdown rendering
+            setTimeout(() => {
+                const contentElement = document.getElementById('design-rendered-' + currentWorkflowId);
+                if (contentElement) {
+                    contentElement.innerHTML = renderEnhancedMarkdown(design);
+                }
+            }, 100);
         }
 
         function displayTasksForApproval(status) {
@@ -999,18 +1206,56 @@ export class SpecBotPanel {
             
             const approvalContent = \`
                 <div style="margin: 16px 0;">
-                    <h3>📋 Implementation Tasks Generated</h3>
-                    <div style="background: var(--vscode-input-background); border: 1px solid var(--vscode-border); padding: 12px; border-radius: 4px; margin: 8px 0; max-height: 300px; overflow-y: auto; white-space: pre-line; font-family: var(--vscode-editor-font-family); font-size: 13px; line-height: 1.4;">
-\${tasks}
+                    <h3 style="color: var(--vscode-foreground); margin-bottom: 16px; font-size: 18px;">📋 Implementation Tasks Generated</h3>
+                    <div id="tasks-content-\${currentWorkflowId}" style="
+                        background: var(--vscode-editor-background); 
+                        border: 1px solid var(--vscode-panel-border); 
+                        border-radius: 6px; 
+                        margin: 8px 0; 
+                        max-height: 400px; 
+                        overflow-y: auto;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        padding: 16px;
+                    ">
+                        <div class="enhanced-content" id="tasks-rendered-\${currentWorkflowId}">
+                            <!-- Content will be rendered here -->
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button onclick="approvePhase('tasks')" style="background: var(--vscode-button-background); color: var(--vscode-button-foreground);">✅ Approve</button>
-                        <button onclick="requestChanges('tasks')" style="background: var(--vscode-secondary-background); border: 1px solid var(--vscode-border);">📝 Request Changes</button>
+                    <div style="display: flex; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--vscode-panel-border);">
+                        <button onclick="approvePhase('tasks')" style="
+                            background: var(--vscode-button-background); 
+                            color: var(--vscode-button-foreground);
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: background-color 0.2s;
+                        ">✅ Approve Tasks</button>
+                        <button onclick="requestChanges('tasks')" style="
+                            background: var(--vscode-button-secondaryBackground); 
+                            color: var(--vscode-button-secondaryForeground);
+                            border: 1px solid var(--vscode-panel-border);
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">📝 Request Changes</button>
                     </div>
                 </div>
             \`;
             
+            // Add the content to the chat
             addMessage('assistant', approvalContent);
+            
+            // Now enhance the content with markdown rendering
+            setTimeout(() => {
+                const contentElement = document.getElementById('tasks-rendered-' + currentWorkflowId);
+                if (contentElement) {
+                    contentElement.innerHTML = renderEnhancedMarkdown(tasks);
+                }
+            }, 100);
         }
 
         function displayCompletedWorkflow(status) {
@@ -1020,7 +1265,61 @@ export class SpecBotPanel {
                 pollingInterval = null;
             }
             
-            addMessage('system', 'Workflow completed! Generated files are available in your workspace under .specbot/specs/');
+            console.log('🎉 Workflow completed! Processing specifications for file saving...');
+            
+            // Extract specifications from status
+            const specifications = {};
+            
+            // Extract requirements
+            if (status.requirements?.content) {
+                specifications.requirements = status.requirements.content;
+            } else if (status.generated_content?.requirements?.content) {
+                specifications.requirements = status.generated_content.requirements.content;
+            } else if (typeof status.requirements === 'string') {
+                specifications.requirements = status.requirements;
+            } else if (typeof status.generated_content?.requirements === 'string') {
+                specifications.requirements = status.generated_content.requirements;
+            }
+            
+            // Extract design
+            if (status.design?.content) {
+                specifications.design = status.design.content;
+            } else if (status.generated_content?.design?.content) {
+                specifications.design = status.generated_content.design.content;
+            } else if (typeof status.design === 'string') {
+                specifications.design = status.design;
+            } else if (typeof status.generated_content?.design === 'string') {
+                specifications.design = status.generated_content.design;
+            }
+            
+            // Extract tasks
+            if (status.tasks?.content) {
+                specifications.tasks = status.tasks.content;
+            } else if (status.generated_content?.tasks?.content) {
+                specifications.tasks = status.generated_content.tasks.content;
+            } else if (typeof status.tasks === 'string') {
+                specifications.tasks = status.tasks;
+            } else if (typeof status.generated_content?.tasks === 'string') {
+                specifications.tasks = status.generated_content.tasks;
+            }
+            
+            console.log('📄 Extracted specifications:', {
+                hasRequirements: !!specifications.requirements,
+                hasDesign: !!specifications.design,
+                hasTasks: !!specifications.tasks
+            });
+            
+            // Use feature name from status, or fallback to a default
+            const featureName = status.feature_name || 'specification';
+            
+            // Send message to extension host to save files
+            vscode.postMessage({
+                type: 'saveSpecifications',
+                featureName: featureName,
+                specifications: specifications
+            });
+            
+            addMessage('system', '🎉 Workflow completed! Saving specification files to your workspace...');
         }
 
         function updateProgress(phase, percentage, text) {
@@ -1044,6 +1343,103 @@ export class SpecBotPanel {
             }
         }
 
+        function handleSaveSpecificationsResult(message) {
+            console.log('📁 Received save specifications result:', message);
+            
+            if (message.success) {
+                addMessage('system', \`✅ \${message.message}\`);
+                
+                // Hide progress bar after a short delay
+                setTimeout(() => hideProgress(), 2000);
+            } else {
+                addMessage('system', \`❌ \${message.message}\`, 'error');
+                console.error('Failed to save specifications:', message.message);
+            }
+        }
+
+        let projectContext = null;
+
+        function handleProjectContext(context) {
+            console.log('🎯 Received project context:', context);
+            projectContext = context;
+            
+            // Update UI with project context
+            updateProjectContextUI(context);
+            
+            // Show smart suggestions
+            showSmartSuggestions(context);
+        }
+
+        function handleProjectContextError(error) {
+            console.error('❌ Project context error:', error);
+            // Silently handle - don't show error to user as this is optional
+        }
+
+        function updateProjectContextUI(context) {
+            // Add project info to the header or somewhere visible
+            const headerInfo = document.querySelector('.header-info');
+            if (headerInfo) {
+                let contextInfo = '';
+                
+                if (context.framework) {
+                    contextInfo += \`🚀 \${context.framework}\`;
+                }
+                
+                if (context.techStack && context.techStack.length > 0) {
+                    if (contextInfo) contextInfo += ' • ';
+                    contextInfo += \`💻 \${context.techStack.join(', ')}\`;
+                }
+                
+                if (context.projectType && context.projectType !== 'unknown') {
+                    if (contextInfo) contextInfo += ' • ';
+                    contextInfo += \`📋 \${context.projectType.replace('-', ' ')}\`;
+                }
+                
+                if (contextInfo) {
+                    headerInfo.innerHTML = \`<div style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-bottom: 8px;">\${contextInfo}</div>\`;
+                }
+            }
+        }
+
+        function showSmartSuggestions(context) {
+            if (context.suggestedFeatures && context.suggestedFeatures.length > 0) {
+                const suggestionsHtml = context.suggestedFeatures.map(feature => 
+                    \`<button onclick="useSuggestion('\${feature}')" style="
+                        background: var(--vscode-button-secondaryBackground); 
+                        color: var(--vscode-button-secondaryForeground);
+                        border: none; 
+                        padding: 4px 8px; 
+                        margin: 2px; 
+                        border-radius: 3px; 
+                        cursor: pointer;
+                        font-size: 11px;
+                    ">\${feature}</button>\`
+                ).join('');
+                
+                // Add suggestions below the input
+                const suggestionsDiv = document.getElementById('suggestions');
+                if (suggestionsDiv) {
+                    suggestionsDiv.innerHTML = \`
+                        <div style="margin: 8px 0;">
+                            <div style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-bottom: 4px;">
+                                💡 Suggested features for your \${context.projectType.replace('-', ' ')} project:
+                            </div>
+                            <div>\${suggestionsHtml}</div>
+                        </div>
+                    \`;
+                }
+            }
+        }
+
+        function useSuggestion(suggestion) {
+            console.log('💡 Using suggestion:', suggestion);
+            const input = document.getElementById('featureInput');
+            if (input) {
+                input.value = suggestion;
+                input.focus();
+            }
+        }
+
         function disableApprovalButtons() {
             // Disable all existing approval buttons to prevent duplicate approvals
             const buttons = document.querySelectorAll('button[onclick*="approvePhase"], button[onclick*="requestChanges"]');
@@ -1051,6 +1447,183 @@ export class SpecBotPanel {
                 button.disabled = true;
                 button.style.opacity = '0.5';
                 button.style.cursor = 'not-allowed';
+            });
+        }
+
+        function renderEnhancedMarkdown(content) {
+            // Enhanced markdown rendering with table support
+            let html = content;
+            
+            // Convert markdown tables to HTML tables FIRST (before other processing)
+            html = convertMarkdownTables(html);
+            
+            // Convert basic markdown - keeping it simple for now
+            // Convert headings
+            html = html.replace(/^### (.+)$/gm, '<h3 style="color: var(--vscode-foreground); font-size: 18px; font-weight: 600; margin: 16px 0 10px 0;">$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2 style="color: var(--vscode-foreground); font-size: 20px; font-weight: 600; margin: 20px 0 12px 0;">$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1 style="color: var(--vscode-foreground); font-size: 24px; font-weight: 700; margin: 24px 0 16px 0;">$1</h1>');
+            
+            // Convert bold text
+            html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong style="font-weight: 600;">$1</strong>');
+            
+            // Convert italic text
+            html = html.replace(/\\*(.+?)\\*/g, '<em style="font-style: italic;">$1</em>');
+            
+            // Convert inline code
+            html = html.replace(/\`([^\`]+)\`/g, '<code style="background: var(--vscode-textCodeBlock-background); padding: 2px 6px; border-radius: 3px; font-family: var(--vscode-editor-font-family); font-size: 0.9em; color: var(--vscode-foreground);">$1</code>');
+            
+            // Convert line breaks to HTML
+            html = html.replace(/\\n/g, '<br>');
+            
+            // Wrap in paragraph
+            html = '<div style="color: var(--vscode-foreground); line-height: 1.6; font-family: var(--vscode-font-family);">' + html + '</div>';
+            
+            return html;
+        }
+
+        function convertMarkdownTables(content) {
+            // Split content into lines
+            const lines = content.split('\\n');
+            let result = [];
+            let i = 0;
+            
+            while (i < lines.length) {
+                const line = lines[i].trim();
+                
+                // Check if this line looks like a table header (contains pipes)
+                if (line.includes('|') && line.split('|').length > 2) {
+                    // Check if next line is a separator line (contains dashes and pipes)
+                    const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : '';
+                    
+                    if (nextLine.includes('|') && nextLine.includes('-')) {
+                        // We found a table! Parse it
+                        const tableHtml = parseMarkdownTable(lines, i);
+                        result.push(tableHtml.html);
+                        i = tableHtml.nextIndex;
+                        continue;
+                    }
+                }
+                
+                // Not a table, just add the line
+                result.push(lines[i]);
+                i++;
+            }
+            
+            return result.join('\\n');
+        }
+
+        function parseMarkdownTable(lines, startIndex) {
+            // Parse header row
+            const headerLine = lines[startIndex].trim();
+            const headers = headerLine.split('|').map(h => h.trim()).filter(h => h !== '');
+            
+            // Skip separator row
+            let currentIndex = startIndex + 2;
+            
+            // Parse data rows
+            const rows = [];
+            while (currentIndex < lines.length) {
+                const line = lines[currentIndex].trim();
+                if (!line.includes('|') || line.split('|').length < 2) {
+                    break; // End of table
+                }
+                
+                const cells = line.split('|').map(c => c.trim()).filter(c => c !== '');
+                if (cells.length > 0) {
+                    rows.push(cells);
+                }
+                currentIndex++;
+            }
+            
+            // Generate HTML table with beautiful VS Code styling
+            let tableHtml = '<table style="' +
+                'width: 100%; ' +
+                'border-collapse: collapse; ' +
+                'margin: 16px 0; ' +
+                'background: var(--vscode-editor-background); ' +
+                'border: 1px solid var(--vscode-panel-border); ' +
+                'border-radius: 6px; ' +
+                'overflow: hidden; ' +
+                'box-shadow: 0 2px 4px rgba(0,0,0,0.1);' +
+            '">';
+            
+            // Add header
+            if (headers.length > 0) {
+                tableHtml += '<thead><tr style="background: var(--vscode-button-secondaryBackground);">';
+                headers.forEach(header => {
+                    tableHtml += '<th style="' +
+                        'padding: 12px 16px; ' +
+                        'text-align: left; ' +
+                        'font-weight: 600; ' +
+                        'color: var(--vscode-foreground); ' +
+                        'border-bottom: 2px solid var(--vscode-panel-border); ' +
+                        'font-size: 13px;' +
+                    '">' + escapeHtml(header) + '</th>';
+                });
+                tableHtml += '</tr></thead>';
+            }
+            
+            // Add body rows
+            if (rows.length > 0) {
+                tableHtml += '<tbody>';
+                rows.forEach((row, rowIndex) => {
+                    const isEven = rowIndex % 2 === 0;
+                    const rowBg = isEven ? 'var(--vscode-editor-background)' : 'var(--vscode-input-background)';
+                    
+                    tableHtml += '<tr style="background: ' + rowBg + '; transition: background-color 0.2s;" onmouseover="this.style.background=\\'var(--vscode-list-hoverBackground)\\'" onmouseout="this.style.background=\\'' + rowBg + '\\'">';
+                    
+                    // Ensure we have the right number of cells
+                    for (let j = 0; j < Math.max(headers.length, row.length); j++) {
+                        const cellContent = j < row.length ? row[j] : '';
+                        tableHtml += '<td style="' +
+                            'padding: 10px 16px; ' +
+                            'color: var(--vscode-foreground); ' +
+                            'border-bottom: 1px solid var(--vscode-panel-border); ' +
+                            'font-size: 12px; ' +
+                            'line-height: 1.4;' +
+                        '">' + escapeHtml(cellContent) + '</td>';
+                    }
+                    tableHtml += '</tr>';
+                });
+                tableHtml += '</tbody>';
+            }
+            
+            tableHtml += '</table>';
+            
+            return {
+                html: tableHtml,
+                nextIndex: currentIndex
+            };
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, (char) => map[char]);
+        }
+
+        function copyCodeBlock(blockId) {
+            const block = document.getElementById(blockId);
+            if (!block) return;
+            
+            const code = block.querySelector('code').textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const button = block.querySelector('.copy-button');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = 'var(--vscode-button-background)';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'var(--vscode-button-secondaryBackground)';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy code:', err);
             });
         }
 

@@ -17,9 +17,47 @@
     "commands": [
       {
         "command": "spec-bot.openPanel",
-        "title": "Open Spec-Bot",
+        "title": "Generate Specification",
         "category": "Spec-Bot",
         "icon": "$(robot)"
+      },
+      {
+        "command": "spec-bot.openRecentFiles",
+        "title": "Open Generated Files",
+        "category": "Spec-Bot",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "spec-bot.clearHistory",
+        "title": "Clear Workflow History",
+        "category": "Spec-Bot",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "spec-bot.openSettings",
+        "title": "Configure Settings",
+        "category": "Spec-Bot",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "spec-bot.refreshExtension",
+        "title": "Refresh Extension",
+        "category": "Spec-Bot",
+        "icon": "$(refresh)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "spec-bot.openPanel",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s",
+        "when": "!inQuickOpen"
+      },
+      {
+        "command": "spec-bot.openRecentFiles",
+        "key": "ctrl+shift+o",
+        "mac": "cmd+shift+o",
+        "when": "!inQuickOpen"
       }
     ],
     "menus": {
@@ -27,6 +65,22 @@
         {
           "command": "spec-bot.openPanel",
           "title": "Spec-Bot: Generate Specification"
+        },
+        {
+          "command": "spec-bot.openRecentFiles",
+          "title": "Spec-Bot: Open Generated Files"
+        },
+        {
+          "command": "spec-bot.clearHistory",
+          "title": "Spec-Bot: Clear Workflow History"
+        },
+        {
+          "command": "spec-bot.openSettings",
+          "title": "Spec-Bot: Configure Settings"
+        },
+        {
+          "command": "spec-bot.refreshExtension",
+          "title": "Spec-Bot: Refresh Extension"
         }
       ],
       "view/title": [
