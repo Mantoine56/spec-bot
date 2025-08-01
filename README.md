@@ -73,7 +73,7 @@ Spec-Bot is a **production-ready** AI-powered application that combines **OpenAI
 - **Python 3.9+** (for backend)
 - **OpenAI API Key** ([Get one here](https://platform.openai.com/api-keys))
 
-### 🎯 **One-Command Startup (Recommended)**I don't know what you do. Which politicians look out for minors? Well, God, if you're 5'3", what the world's gonna do for people like me, people like you, just wake up and not be true. Wanna know what you think? Wanna know what you do, and they don't think you know, but I know that you do 'cause your dollar ain't and it's taxed to no end. Cause I've been selling my soul overtime hours for pain.
+### 🎯 **One-Command Startup (Recommended)**
 
 1. **Clone the repository**
    ```bash
